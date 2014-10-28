@@ -10,7 +10,7 @@ config = {
     'version': '0.1',
     'description': 'Python client for Kyoto Tycoon',
     'long_description': __doc__,
-    'url': 'http://github.com/eungju/dongraetrader-python',
+    'url': 'https://github.com/eungju/dongraetrader-python',
     'author': 'Park Eungju',
     'author_email': 'eungju@gmail.com',
     'packages': ['dongraetrader'],
