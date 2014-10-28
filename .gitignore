@@ -1,0 +1,11 @@
+.DS_Store
+
+*.pyc
+*.egg
+*.egg-info
+.tox
+/build
+/dist
+
+.idea
+*.iml
