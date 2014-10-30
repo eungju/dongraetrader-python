@@ -18,37 +18,41 @@ class DummyConnection(connection.Connection):
     def success(self):
         return True
 
-    def communication_failure(self):
+    def cause_communication_error(self):
         raise DummyException()
+
+    def cause_auxiliary_error(self):
+        raise Exception()
 
 
 class ConnectionPoolTest(unittest.TestCase):
     def setUp(self):
         self.dut = connection.ConnectionPool({}, DummyConnection)
 
-    def test_guard_release_connection_if_exception_is_not_raised(self):
+    def test_guard_release_connection_if_no_error(self):
         with self.dut.connection() as c:
-            x = c
+            acquired = c
             c.success()
-        self.assertFalse(x.closed)
-        self.assertTrue(x in self.dut.pool.queue)
+        self.assertFalse(acquired.closed)
+        self.assertTrue(acquired in self.dut.pool.queue)
 
-    def test_guard_release_connection_if_unexpected_exception_is_raised(self):
+    def test_guard_release_connection_if_non_communication_error(self):
         try:
             with self.dut.connection() as c:
-                x = c
+                acquired = c
+                c.cause_auxiliary_error()
                 raise Exception
             self.fail()
         except Exception:
-            self.assertFalse(x.closed)
-        self.assertTrue(x in self.dut.pool.queue)
+            self.assertFalse(acquired.closed)
+        self.assertTrue(acquired in self.dut.pool.queue)
 
-    def test_guard_abandon_connection_if_expected_exception_is_raised(self):
+    def test_guard_abandon_connection_if_communication_error(self):
         try:
             with self.dut.connection() as c:
-                x = c
-                c.communication_failure()
+                acquired = c
+                c.cause_communication_error()
             self.fail()
         except DummyException:
-            self.assertTrue(x.closed)
-            self.assertTrue(x not in self.dut.pool.queue)
+            self.assertTrue(acquired.closed)
+            self.assertTrue(acquired not in self.dut.pool.queue)
