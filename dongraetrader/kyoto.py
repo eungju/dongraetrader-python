@@ -97,8 +97,6 @@ def assoc_to_tsv(assoc, encoding):
                 k = k.encode('utf-8')
             if isinstance(v, text_type):
                 v = v.encode('utf-8')
-            if not isinstance(k, binary_type):
-                raise Exception('OMG')
             buffer.write(encoding.encode(k))
             buffer.write(b"\t")
             buffer.write(encoding.encode(v))
@@ -146,6 +144,18 @@ class LogicalInconsistencyError(KyotoError):
 
 
 class KyotoTycoonConnection(Connection):
+    NAME_KEY = b'key'
+    NAME_VALUE = b'value'
+    NAME_DB = b'DB'
+    NAME_XT = b'xt'
+    NAME_ORIG = b'orig'
+    NAME_ATOMIC = b'atomic'
+    NAME_NUM = b'num'
+    NAME_PREFIX = b'prefix'
+    NAME_MAX = b'max'
+    NAME_VSIZ = b'vsiz'
+    NAME_ERROR = b'ERROR'
+
     def __init__(self, host, port, timeout=None):
         super(KyotoTycoonConnection, self).__init__([HTTPException])
         self.connection = HTTPConnection(host, port, timeout=timeout)
@@ -167,10 +177,9 @@ class KyotoTycoonConnection(Connection):
         status, reason = response.status, response.reason
         out_encoding = get_column_encoding_by_content_type(response.getheader("Content-Type"))
         output = tsv_to_assoc(response.read(), out_encoding) if out_encoding else None
-        #print (status, reason, output)
         if status == 200:
             return output
-        message = (assoc_get(output, b"ERROR") if output else reason).decode('utf-8')
+        message = (assoc_get(output, self.NAME_ERROR) if output else reason).decode('utf-8')
         if status == 450:
             raise LogicalInconsistencyError(message)
         else:
@@ -186,72 +195,73 @@ class KyotoTycoonConnection(Connection):
 
     def clear(self, db=None):
         input = []
-        assoc_append_if_not_none(input, b"DB", db)
+        assoc_append_if_not_none(input, self.NAME_DB, db)
         self.call("clear", input)
 
     def set(self, key, value, xt=None, db=None):
         input = []
-        assoc_append(input, b"key", key)
-        assoc_append(input, b"value", value)
-        assoc_append_if_not_none(input, b"xt", none_or_str(xt))
-        assoc_append_if_not_none(input, b"DB", db)
+        assoc_append(input, self.NAME_KEY, key)
+        assoc_append(input, self.NAME_VALUE, value)
+        assoc_append_if_not_none(input, self.NAME_XT, none_or_str(xt))
+        assoc_append_if_not_none(input, self.NAME_DB, db)
         self.call("set", input)
 
     def add(self, key, value, xt=None, db=None):
         input = []
-        assoc_append(input, b"key", key)
-        assoc_append(input, b"value", value)
-        assoc_append_if_not_none(input, b"xt", none_or_str(xt))
-        assoc_append_if_not_none(input, b"DB", db)
+        assoc_append(input, self.NAME_KEY, key)
+        assoc_append(input, self.NAME_VALUE, value)
+        assoc_append_if_not_none(input, self.NAME_XT, none_or_str(xt))
+        assoc_append_if_not_none(input, self.NAME_DB, db)
         self.call("add", input)
 
     def increment(self, key, num, orig=None, xt=None, db=None):
         input = []
-        assoc_append(input, b"key", key)
-        assoc_append(input, b"num", str(num))
-        assoc_append_if_not_none(input, b"orig", orig)
-        assoc_append_if_not_none(input, b"xt", none_or_str(xt))
-        assoc_append_if_not_none(input, b"DB", db)
+        assoc_append(input, self.NAME_KEY, key)
+        assoc_append(input, self.NAME_NUM, str(num))
+        assoc_append_if_not_none(input, self.NAME_ORIG, orig)
+        assoc_append_if_not_none(input, self.NAME_XT, none_or_str(xt))
+        assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("increment", input)
-        return int(assoc_get(output, b"num"))
+        return int(assoc_get(output, self.NAME_NUM))
 
     def get(self, key, db=None):
         input = []
-        assoc_append(input, b"key", key)
-        assoc_append_if_not_none(input, b"DB", db)
+        assoc_append(input, self.NAME_KEY, key)
+        assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("get", input)
-        return assoc_get(output, b"value"), none_or_int(assoc_find(output, b"xt"))
+        return assoc_get(output, self.NAME_VALUE), none_or_int(assoc_find(output, self.NAME_XT))
 
     def check(self, key, db=None):
         input = []
-        assoc_append(input, b"key", key)
-        assoc_append_if_not_none(input, b"DB", db)
+        assoc_append(input, self.NAME_KEY, key)
+        assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("check", input)
-        return int(assoc_get(output, b"vsiz")), none_or_int(assoc_find(output, b"xt"))
+        return int(assoc_get(output, self.NAME_VSIZ)), none_or_int(assoc_find(output, self.NAME_XT))
 
     def remove_bulk(self, keys, atomic=None, db=None):
         input = []
-        assoc_append_if_not_none(input, b"atomic", atomic)
-        assoc_append_if_not_none(input, b"DB", db)
+        assoc_append_if_not_none(input, self.NAME_ATOMIC, atomic)
+        assoc_append_if_not_none(input, self.NAME_DB, db)
         for key in keys:
             assoc_append(input, b"_" + key, b"")
         output = self.call("remove_bulk", input)
-        return int(assoc_get(output, b"num"))
+        return int(assoc_get(output, self.NAME_NUM))
 
     def get_bulk(self, keys, atomic=None, db=None):
+        keys = [key.encode('utf-8') for key in keys]
         input = []
-        assoc_append_if_not_none(input, b"atomic", atomic)
-        assoc_append_if_not_none(input, b"DB", db)
+        assoc_append_if_not_none(input, self.NAME_ATOMIC, atomic)
+        assoc_append_if_not_none(input, self.NAME_DB, db)
         for key in keys:
-            assoc_append(input, b"_" + key.encode('utf-8'), b"")
+            assoc_append(input, b"_" + key, b"")
         output = self.call("get_bulk", input)
         return dict([(k[1:], v) for k, v in output if k.startswith(b"_")])
 
     def match_prefix(self, prefix, max=None, db=None):
         input = []
-        assoc_append(input, b"prefix", prefix)
-        assoc_append_if_not_none(input, b"max", none_or_str(max))
-        assoc_append_if_not_none(input, b"DB", db)
+        assoc_append(input, self.NAME_PREFIX, prefix)
+        assoc_append_if_not_none(input, self.NAME_MAX, none_or_str(max))
+        assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("match_prefix", input)
         return [k[1:] for k, v in output if k.startswith(b"_")]
 
