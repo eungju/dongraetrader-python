@@ -1,14 +1,23 @@
+from __future__ import unicode_literals
 import io
 import base64
 try:
-    import urllib.parse as url_parse
+    from urllib.parse import quote_from_bytes, unquote_to_bytes
 except ImportError:
-    import urllib2 as url_parse
+    from urllib2 import quote as quote_from_bytes, unquote as unquote_to_bytes
 
 try:
     from http.client import HTTPConnection, HTTPException
 except ImportError:
     from httplib import HTTPConnection, HTTPException
+
+import sys
+if sys.version < '3':
+    text_type = unicode
+    binary_type = str
+else:
+    text_type = str
+    binary_type = bytes
 
 from .connection import Connection, ConnectionPool
 
@@ -40,10 +49,10 @@ class URLValueEncoding(ValueEncoding):
         super(URLValueEncoding, self).__init__("U")
 
     def encode(self, s):
-        return url_parse.quote(s)
+        return quote_from_bytes(s).encode('ascii')
 
     def decode(self, s):
-        return url_parse.unquote(s)
+        return unquote_to_bytes(s)
 
 
 class Base64ValueEncoding(ValueEncoding):
@@ -84,10 +93,16 @@ def assoc_to_tsv(assoc, encoding):
     buffer = io.BytesIO()
     try:
         for k, v in assoc:
+            if isinstance(k, text_type):
+                k = k.encode('utf-8')
+            if isinstance(v, text_type):
+                v = v.encode('utf-8')
+            if not isinstance(k, binary_type):
+                raise Exception('OMG')
             buffer.write(encoding.encode(k))
-            buffer.write("\t")
+            buffer.write(b"\t")
             buffer.write(encoding.encode(v))
-            buffer.write("\r\n")
+            buffer.write(b"\r\n")
         return buffer.getvalue()
     finally:
         buffer.close()
@@ -98,7 +113,7 @@ def tsv_to_assoc(s, encoding):
     rows = s.splitlines()
     for row in rows:
         if row:
-            columns = row.split("\t")
+            columns = row.split(b"\t")
             assoc_append(result, encoding.decode(columns[0]), encoding.decode(columns[1]))
     return result
 
@@ -155,7 +170,7 @@ class KyotoTycoonConnection(Connection):
         #print (status, reason, output)
         if status == 200:
             return output
-        message = assoc_get(output, "ERROR") if output else reason
+        message = (assoc_get(output, b"ERROR") if output else reason).decode('utf-8')
         if status == 450:
             raise LogicalInconsistencyError(message)
         else:
@@ -171,74 +186,74 @@ class KyotoTycoonConnection(Connection):
 
     def clear(self, db=None):
         input = []
-        assoc_append_if_not_none(input, "DB", db)
+        assoc_append_if_not_none(input, b"DB", db)
         self.call("clear", input)
 
     def set(self, key, value, xt=None, db=None):
         input = []
-        assoc_append(input, "key", key)
-        assoc_append(input, "value", value)
-        assoc_append_if_not_none(input, "xt", none_or_str(xt))
-        assoc_append_if_not_none(input, "DB", db)
+        assoc_append(input, b"key", key)
+        assoc_append(input, b"value", value)
+        assoc_append_if_not_none(input, b"xt", none_or_str(xt))
+        assoc_append_if_not_none(input, b"DB", db)
         self.call("set", input)
 
     def add(self, key, value, xt=None, db=None):
         input = []
-        assoc_append(input, "key", key)
-        assoc_append(input, "value", value)
-        assoc_append_if_not_none(input, "xt", none_or_str(xt))
-        assoc_append_if_not_none(input, "DB", db)
+        assoc_append(input, b"key", key)
+        assoc_append(input, b"value", value)
+        assoc_append_if_not_none(input, b"xt", none_or_str(xt))
+        assoc_append_if_not_none(input, b"DB", db)
         self.call("add", input)
 
     def increment(self, key, num, orig=None, xt=None, db=None):
         input = []
-        assoc_append(input, "key", key)
-        assoc_append(input, "num", str(num))
-        assoc_append_if_not_none(input, "orig", orig)
-        assoc_append_if_not_none(input, "xt", none_or_str(xt))
-        assoc_append_if_not_none(input, "DB", db)
+        assoc_append(input, b"key", key)
+        assoc_append(input, b"num", str(num))
+        assoc_append_if_not_none(input, b"orig", orig)
+        assoc_append_if_not_none(input, b"xt", none_or_str(xt))
+        assoc_append_if_not_none(input, b"DB", db)
         output = self.call("increment", input)
-        return int(assoc_get(output, "num"))
+        return int(assoc_get(output, b"num"))
 
     def get(self, key, db=None):
         input = []
-        assoc_append(input, "key", key)
-        assoc_append_if_not_none(input, "DB", db)
+        assoc_append(input, b"key", key)
+        assoc_append_if_not_none(input, b"DB", db)
         output = self.call("get", input)
-        return assoc_get(output, "value"), none_or_int(assoc_find(output, "xt"))
+        return assoc_get(output, b"value"), none_or_int(assoc_find(output, b"xt"))
 
     def check(self, key, db=None):
         input = []
-        assoc_append(input, "key", key)
-        assoc_append_if_not_none(input, "DB", db)
+        assoc_append(input, b"key", key)
+        assoc_append_if_not_none(input, b"DB", db)
         output = self.call("check", input)
-        return int(assoc_get(output, "vsiz")), none_or_int(assoc_find(output, "xt"))
+        return int(assoc_get(output, b"vsiz")), none_or_int(assoc_find(output, b"xt"))
 
     def remove_bulk(self, keys, atomic=None, db=None):
         input = []
-        assoc_append_if_not_none(input, "atomic", atomic)
-        assoc_append_if_not_none(input, "DB", db)
+        assoc_append_if_not_none(input, b"atomic", atomic)
+        assoc_append_if_not_none(input, b"DB", db)
         for key in keys:
-            assoc_append(input, "_" + key, "")
+            assoc_append(input, b"_" + key, b"")
         output = self.call("remove_bulk", input)
-        return int(assoc_get(output, "num"))
+        return int(assoc_get(output, b"num"))
 
     def get_bulk(self, keys, atomic=None, db=None):
         input = []
-        assoc_append_if_not_none(input, "atomic", atomic)
-        assoc_append_if_not_none(input, "DB", db)
+        assoc_append_if_not_none(input, b"atomic", atomic)
+        assoc_append_if_not_none(input, b"DB", db)
         for key in keys:
-            assoc_append(input, "_" + key, "")
+            assoc_append(input, b"_" + key.encode('utf-8'), b"")
         output = self.call("get_bulk", input)
-        return dict([(k[1:], v) for k, v in output if k[0] == "_"])
+        return dict([(k[1:], v) for k, v in output if k.startswith(b"_")])
 
     def match_prefix(self, prefix, max=None, db=None):
         input = []
-        assoc_append(input, "prefix", prefix)
-        assoc_append_if_not_none(input, "max", none_or_str(max))
-        assoc_append_if_not_none(input, "DB", db)
+        assoc_append(input, b"prefix", prefix)
+        assoc_append_if_not_none(input, b"max", none_or_str(max))
+        assoc_append_if_not_none(input, b"DB", db)
         output = self.call("match_prefix", input)
-        return [k[1:] for k, v in output if k[0] == "_"]
+        return [k[1:] for k, v in output if k.startswith(b"_")]
 
 
 class KyotoTycoonClient(object):

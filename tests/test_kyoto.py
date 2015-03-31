@@ -47,13 +47,13 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
 
     def test_set(self):
         self.dut.set("a", "1")
-        self.assertEqual(self.dut.get("a"), ("1", None))
+        self.assertEqual(self.dut.get("a"), (b"1", None))
         self.dut.set("a", "2")
-        self.assertEqual(self.dut.get("a"), ("2", None))
+        self.assertEqual(self.dut.get("a"), (b"2", None))
 
     def test_add(self):
         self.dut.add("a", "1")
-        self.assertEqual(self.dut.get("a"), ("1", None))
+        self.assertEqual(self.dut.get("a"), (b"1", None))
 
     def test_add_error_existing_record_was_detected(self):
         self.dut.add("a", "1")
@@ -63,7 +63,7 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
         self.assertEqual(self.dut.increment("count", 1), 1)
         self.assertEqual(self.dut.increment("count", 2), 3)
         self.assertEqual(self.dut.increment("count", 0), 3)
-        self.assertEqual(self.dut.get("count"), ("\x00\x00\x00\x00\x00\x00\x00\x03", None))
+        self.assertEqual(self.dut.get("count"), (b"\x00\x00\x00\x00\x00\x00\x00\x03", None))
 
     def test_increment_error_incompatible_existing_record(self):
         self.dut.set("count", "1")
@@ -86,14 +86,14 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
 
     def test_get(self):
         self.dut.set("a", "1")
-        self.assertEqual(self.dut.get("a"), ("1", None))
+        self.assertEqual(self.dut.get("a"), (b"1", None))
 
     def test_get_error_no_record_was_found(self):
         self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, "a")
 
     def test_get_expired(self):
         self.dut.set("a", "1", 1)
-        self.assertEqual(self.dut.get("a"), ("1", int(time.time() + 1)))
+        self.assertEqual(self.dut.get("a"), (b"1", int(time.time() + 1)))
         time.sleep(2)
         self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, "a")
 
@@ -108,20 +108,20 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
         self.assertEqual(self.dut.get_bulk(["a", "b"]), {})
         self.dut.set("a", "1")
         self.dut.set("b", "2")
-        self.assertEqual(self.dut.get_bulk(["a", "b"]), {"a": "1", "b": "2"})
+        self.assertEqual(self.dut.get_bulk(["a", "b"]), {b"a": b"1", b"b": b"2"})
 
     def test_match_prefix(self):
         self.assertEqual(self.dut.match_prefix("a"), [])
         self.dut.set("a", "1")
         self.dut.set("aa", "11")
         self.dut.set("b", "2")
-        self.assertEqual(self.dut.match_prefix("a"), ["a", "aa"])
+        self.assertEqual(self.dut.match_prefix("a"), [b"a", b"aa"])
 
     def test_match_prefix_with_max(self):
         self.dut.set("a", "1")
         self.dut.set("aa", "11")
         self.dut.set("b", "2")
-        self.assertEqual(self.dut.match_prefix("a", max=1), ["a"])
+        self.assertEqual(self.dut.match_prefix("a", max=1), [b"a"])
 
 
 class KyotoTycoonConnectionPerformanceTest(unittest.TestCase):
