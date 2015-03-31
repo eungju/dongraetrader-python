@@ -1,7 +1,14 @@
-from cStringIO import StringIO
+import io
 import base64
-import httplib
-import urllib2
+try:
+    import urllib.parse as url_parse
+except ImportError:
+    import urllib2 as url_parse
+
+try:
+    from http.client import HTTPConnection, HTTPException
+except ImportError:
+    from httplib import HTTPConnection, HTTPException
 
 from .connection import Connection, ConnectionPool
 
@@ -33,10 +40,10 @@ class URLValueEncoding(ValueEncoding):
         super(URLValueEncoding, self).__init__("U")
 
     def encode(self, s):
-        return urllib2.quote(s)
+        return url_parse.quote(s)
 
     def decode(self, s):
-        return urllib2.unquote(s)
+        return url_parse.unquote(s)
 
 
 class Base64ValueEncoding(ValueEncoding):
@@ -74,7 +81,7 @@ def assoc_find(assoc, key):
 
 
 def assoc_to_tsv(assoc, encoding):
-    buffer = StringIO()
+    buffer = io.BytesIO()
     try:
         for k, v in assoc:
             buffer.write(encoding.encode(k))
@@ -125,8 +132,8 @@ class LogicalInconsistencyError(KyotoError):
 
 class KyotoTycoonConnection(Connection):
     def __init__(self, host, port, timeout=None):
-        super(KyotoTycoonConnection, self).__init__([httplib.HTTPException])
-        self.connection = httplib.HTTPConnection(host, port, timeout=timeout)
+        super(KyotoTycoonConnection, self).__init__([HTTPException])
+        self.connection = HTTPConnection(host, port, timeout=timeout)
         self.connection.connect()
         self.str = "%s#%d(%s:%d)" % (self.__class__.__name__, id(self), host, port)
 
