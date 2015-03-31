@@ -127,7 +127,7 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
 class KyotoTycoonConnectionPerformanceTest(unittest.TestCase):
     def test_connect_and_close(self):
         s = time.time()
-        for i in xrange(100):
+        for i in range(100):
             dut = kyoto.KyotoTycoonConnection('localhost', 1978)
             dut.close()
         e = time.time()
@@ -137,7 +137,7 @@ class KyotoTycoonConnectionPerformanceTest(unittest.TestCase):
         s = time.time()
         dut = kyoto.KyotoTycoonConnection('localhost', 1978)
         dut.set("a", "1" * 1024)
-        for i in xrange(1000):
+        for i in range(1000):
             dut.get("a")
         e = time.time()
         self.assertLess(e - s, 2)
