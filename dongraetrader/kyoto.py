@@ -89,14 +89,6 @@ def assoc_find(assoc, key):
     return None
 
 
-def none_or_str(i):
-    return None if i is None else str(i).encode('utf-8')
-
-
-def none_or_int(s):
-    return None if s is None else int(s)
-
-
 class TsvRpc(object):
     RECORD_SEPARATOR = b'\n'
     COLUMN_SEPARATOR = b'\t'
@@ -130,10 +122,12 @@ class TsvRpc(object):
         buffer = io.BytesIO()
         try:
             for columns in records:
+                first = True
                 for i, column in enumerate(columns):
-                    if i != 0:
+                    if not first:
                         buffer.write(cls.COLUMN_SEPARATOR)
-                    buffer.write(column)
+                    buffer.write(encoding.encode(column))
+                    first = False
                 buffer.write(cls.RECORD_SEPARATOR)
             return buffer.getvalue()
         finally:
@@ -166,12 +160,29 @@ class KyotoTycoonConnection(Connection):
         self.connection = HTTPConnection(host, port, timeout=timeout)
         self.connection.connect()
         self.str = "%s#%d(%s:%d)" % (self.__class__.__name__, id(self), host, port)
+        self._text_encoding = 'utf-8'
 
     def __str__(self):
         return self.str
 
     def close(self):
         self.connection.close()
+
+    def _encode_text(self, t):
+        return t.encode(self._text_encoding)
+
+    def _decode_text(self, b):
+        return b.decode(self._text_encoding)
+
+    def _encode_int(self, i):
+        if i is None:
+            return None
+        return self._encode_text(str(i))
+
+    def _decode_int(self, b):
+        if b is None:
+            return None
+        return int(self._decode_text(b))
 
     def call(self, name, input):
         in_encoding = URLValueEncoding()
@@ -185,7 +196,7 @@ class KyotoTycoonConnection(Connection):
         output = TsvRpc.read(x, out_encoding) if out_encoding else None
         if status == 200:
             return output
-        message = (assoc_get(output, self.NAME_ERROR) if output else reason).decode('utf-8')
+        message = self._decode_text(assoc_get(output, self.NAME_ERROR) if output else reason)
         if status == 450:
             raise LogicalInconsistencyError(message)
         else:
@@ -208,7 +219,7 @@ class KyotoTycoonConnection(Connection):
         input = []
         assoc_append(input, self.NAME_KEY, key)
         assoc_append(input, self.NAME_VALUE, value)
-        assoc_append_if_not_none(input, self.NAME_XT, none_or_str(xt))
+        assoc_append_if_not_none(input, self.NAME_XT, self._encode_int(xt))
         assoc_append_if_not_none(input, self.NAME_DB, db)
         self.call("set", input)
 
@@ -216,16 +227,16 @@ class KyotoTycoonConnection(Connection):
         input = []
         assoc_append(input, self.NAME_KEY, key)
         assoc_append(input, self.NAME_VALUE, value)
-        assoc_append_if_not_none(input, self.NAME_XT, none_or_str(xt))
+        assoc_append_if_not_none(input, self.NAME_XT, self._encode_int(xt))
         assoc_append_if_not_none(input, self.NAME_DB, db)
         self.call("add", input)
 
     def increment(self, key, num, orig=None, xt=None, db=None):
         input = []
         assoc_append(input, self.NAME_KEY, key)
-        assoc_append(input, self.NAME_NUM, str(num).encode('utf-8'))
+        assoc_append(input, self.NAME_NUM, self._encode_int(num))
         assoc_append_if_not_none(input, self.NAME_ORIG, orig)
-        assoc_append_if_not_none(input, self.NAME_XT, none_or_str(xt))
+        assoc_append_if_not_none(input, self.NAME_XT, self._encode_int(xt))
         assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("increment", input)
         return int(assoc_get(output, self.NAME_NUM))
@@ -235,14 +246,14 @@ class KyotoTycoonConnection(Connection):
         assoc_append(input, self.NAME_KEY, key)
         assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("get", input)
-        return assoc_get(output, self.NAME_VALUE), none_or_int(assoc_find(output, self.NAME_XT))
+        return assoc_get(output, self.NAME_VALUE), self._decode_int(assoc_find(output, self.NAME_XT))
 
     def check(self, key, db=None):
         input = []
         assoc_append(input, self.NAME_KEY, key)
         assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("check", input)
-        return int(assoc_get(output, self.NAME_VSIZ)), none_or_int(assoc_find(output, self.NAME_XT))
+        return int(assoc_get(output, self.NAME_VSIZ)), self._decode_int(assoc_find(output, self.NAME_XT))
 
     def remove_bulk(self, keys, atomic=None, db=None):
         input = []
@@ -265,7 +276,7 @@ class KyotoTycoonConnection(Connection):
     def match_prefix(self, prefix, max=None, db=None):
         input = []
         assoc_append(input, self.NAME_PREFIX, prefix)
-        assoc_append_if_not_none(input, self.NAME_MAX, none_or_str(max))
+        assoc_append_if_not_none(input, self.NAME_MAX, self._encode_int(max))
         assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("match_prefix", input)
         return [k[1:] for k, v in output if k.startswith(b"_")]

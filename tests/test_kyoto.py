@@ -26,7 +26,7 @@ class AssocTest(unittest.TestCase):
 class TsvRpcTest(unittest.TestCase):
     def setUp(self):
         self.dut = kyoto.TsvRpc
-        self.column_encoding = kyoto.RawValueEncoding()
+        self.column_encoding = kyoto.URLValueEncoding()
 
     def test_read_empty(self):
         self.assertEquals(self.dut.read(b'', self.column_encoding), [])
@@ -45,6 +45,10 @@ class TsvRpcTest(unittest.TestCase):
 
     def test_write_multiple_rows(self):
         self.assertEquals(self.dut.write([(b'a', b'b'), (b'c', b'd')], self.column_encoding), b'a\tb\nc\td\n')
+
+    def test_column_encoding_awareness(self):
+        self.assertEquals(self.dut.read(b'%20\t%62\n', self.column_encoding), [(b' ', b'b')])
+        self.assertEquals(self.dut.write([(b' ', b'b')], self.column_encoding), b'%20\tb\n')
 
 
 class KyotoTycoonConnectionTest(unittest.TestCase):
