@@ -1,3 +1,4 @@
+from io import BytesIO
 import time
 import unittest
 
@@ -21,6 +22,30 @@ class AssocTest(unittest.TestCase):
         self.assertIsNone(kyoto.assoc_find(assoc, "k"))
         kyoto.assoc_append(assoc, "k", "v")
         self.assertEqual(kyoto.assoc_find(assoc, "k"), "v")
+
+
+class TsvRpcTest(unittest.TestCase):
+    def setUp(self):
+        self.dut = kyoto.TsvRpc
+        self.column_encoding = kyoto.RawValueEncoding()
+
+    def test_read_empty(self):
+        self.assertEquals(self.dut.read(b'', self.column_encoding), [])
+
+    def test_read_one_row(self):
+        self.assertEquals(self.dut.read(b'a\tb\n', self.column_encoding), [(b'a', b'b')])
+
+    def test_read_multiple_rows(self):
+        self.assertEquals(self.dut.read(b'a\tb\nc\td\n', self.column_encoding), [(b'a', b'b'), (b'c', b'd')])
+
+    def test_write_empty(self):
+        self.assertEquals(self.dut.write([], self.column_encoding), b'')
+
+    def test_write_one_row(self):
+        self.assertEquals(self.dut.write([(b'a', b'b')], self.column_encoding), b'a\tb\n')
+
+    def test_write_multiple_rows(self):
+        self.assertEquals(self.dut.write([(b'a', b'b'), (b'c', b'd')], self.column_encoding), b'a\tb\nc\td\n')
 
 
 class KyotoTycoonConnectionTest(unittest.TestCase):

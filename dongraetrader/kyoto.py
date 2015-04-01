@@ -89,33 +89,6 @@ def assoc_find(assoc, key):
     return None
 
 
-def assoc_to_tsv(assoc, encoding):
-    buffer = io.BytesIO()
-    try:
-        for k, v in assoc:
-            if isinstance(k, text_type):
-                k = k.encode('utf-8')
-            if isinstance(v, text_type):
-                v = v.encode('utf-8')
-            buffer.write(encoding.encode(k))
-            buffer.write(b"\t")
-            buffer.write(encoding.encode(v))
-            buffer.write(b"\r\n")
-        return buffer.getvalue()
-    finally:
-        buffer.close()
-
-
-def tsv_to_assoc(s, encoding):
-    result = []
-    rows = s.splitlines()
-    for row in rows:
-        if row:
-            columns = row.split(b"\t")
-            assoc_append(result, encoding.decode(columns[0]), encoding.decode(columns[1]))
-    return result
-
-
 def none_or_str(i):
     return None if i is None else str(i)
 
@@ -124,15 +97,47 @@ def none_or_int(s):
     return None if s is None else int(s)
 
 
-CONTENT_TYPE_TO_COLUMN_ENCODING = {
-    "text/tab-separated-values": RawValueEncoding(),
-    "text/tab-separated-values; colenc=U": URLValueEncoding(),
-    "text/tab-separated-values; colenc=B": Base64ValueEncoding()
-}
+class TsvRpc(object):
+    RECORD_SEPARATOR = b'\n'
+    COLUMN_SEPARATOR = b'\t'
 
+    CONTENT_TYPES = {
+        "text/tab-separated-values": RawValueEncoding(),
+        "text/tab-separated-values; colenc=U": URLValueEncoding(),
+        "text/tab-separated-values; colenc=B": Base64ValueEncoding()
+    }
 
-def get_column_encoding_by_content_type(content_type):
-    return CONTENT_TYPE_TO_COLUMN_ENCODING[content_type]
+    @classmethod
+    def column_encoding_for(cls, content_type):
+        return cls.CONTENT_TYPES[content_type]
+
+    @classmethod
+    def content_type_for(cls, column_encoding):
+        return 'text/tab-separated-values; colenc=%s' % column_encoding.name
+
+    @classmethod
+    def read(cls, s, encoding):
+        result = []
+        rows = s.split(cls.RECORD_SEPARATOR)
+        for row in rows:
+            if row:
+                columns = row.split(cls.COLUMN_SEPARATOR)
+                result.append(tuple(encoding.decode(column) for column in columns))
+        return result
+
+    @classmethod
+    def write(cls, records, encoding):
+        buffer = io.BytesIO()
+        try:
+            for columns in records:
+                for i, column in enumerate(columns):
+                    if i != 0:
+                        buffer.write(cls.COLUMN_SEPARATOR)
+                    buffer.write(column.encode('utf-8') if isinstance(column, text_type) else column)
+                buffer.write(cls.RECORD_SEPARATOR)
+            return buffer.getvalue()
+        finally:
+            buffer.close()
 
 
 class KyotoError(Exception):
@@ -170,13 +175,14 @@ class KyotoTycoonConnection(Connection):
 
     def call(self, name, input):
         in_encoding = URLValueEncoding()
-        body = assoc_to_tsv(input, in_encoding)
-        headers = {"Content-Type": "text/tab-separated-values; colenc=%s" % in_encoding.name}
+        body = TsvRpc.write(input, in_encoding)
+        headers = {"Content-Type": TsvRpc.content_type_for(in_encoding)}
         self.connection.request("POST", "/rpc/%s" % name, body, headers)
         response = self.connection.getresponse()
         status, reason = response.status, response.reason
-        out_encoding = get_column_encoding_by_content_type(response.getheader("Content-Type"))
-        output = tsv_to_assoc(response.read(), out_encoding) if out_encoding else None
+        out_encoding = TsvRpc.column_encoding_for(response.getheader("Content-Type"))
+        x = response.read()
+        output = TsvRpc.read(x, out_encoding) if out_encoding else None
         if status == 200:
             return output
         message = (assoc_get(output, self.NAME_ERROR) if output else reason).decode('utf-8')
