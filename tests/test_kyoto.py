@@ -1,4 +1,3 @@
-from io import BytesIO
 import time
 import unittest
 
@@ -66,87 +65,87 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
         self.dut.void()
 
     def test_clear(self):
-        self.dut.add("a", "1")
+        self.dut.add(b"k", b"v")
         self.dut.clear()
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, "a")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, b"k")
 
     def test_set(self):
-        self.dut.set("a", "1")
-        self.assertEqual(self.dut.get("a"), (b"1", None))
-        self.dut.set("a", "2")
-        self.assertEqual(self.dut.get("a"), (b"2", None))
+        self.dut.set(b"k", b"v")
+        self.assertEqual(self.dut.get(b"k"), (b"v", None))
+        self.dut.set(b"k", b"w")
+        self.assertEqual(self.dut.get(b"k"), (b"w", None))
 
     def test_add(self):
-        self.dut.add("a", "1")
-        self.assertEqual(self.dut.get("a"), (b"1", None))
+        self.dut.add(b"k", b"v")
+        self.assertEqual(self.dut.get(b"k"), (b"v", None))
 
     def test_add_error_existing_record_was_detected(self):
-        self.dut.add("a", "1")
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.add, "a", "2")
+        self.dut.add(b"k", b"v")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.add, b"k", b"w")
 
     def test_increment(self):
-        self.assertEqual(self.dut.increment("count", 1), 1)
-        self.assertEqual(self.dut.increment("count", 2), 3)
-        self.assertEqual(self.dut.increment("count", 0), 3)
-        self.assertEqual(self.dut.get("count"), (b"\x00\x00\x00\x00\x00\x00\x00\x03", None))
+        self.assertEqual(self.dut.increment(b"count", 1), 1)
+        self.assertEqual(self.dut.increment(b"count", 2), 3)
+        self.assertEqual(self.dut.increment(b"count", 0), 3)
+        self.assertEqual(self.dut.get(b"count"), (b"\x00\x00\x00\x00\x00\x00\x00\x03", None))
 
     def test_increment_error_incompatible_existing_record(self):
-        self.dut.set("count", "1")
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, "count", 2)
+        self.dut.set(b"count", b"1")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, b"count", 2)
 
     def test_increment_with_try(self):
-        self.assertEqual(self.dut.increment("count", 1), 1)
-        self.assertEqual(self.dut.increment("count", 2, orig="try"), 3)
+        self.assertEqual(self.dut.increment(b"count", 1), 1)
+        self.assertEqual(self.dut.increment(b"count", 2, orig=b"try"), 3)
 
     def test_increment_with_try_error_incompatible_existing_record(self):
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, "count", 1, orig="try")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, b"count", 1, orig=b"try")
 
     def test_increment_with_set(self):
-        self.assertEqual(self.dut.increment("count", 1, orig="set"), 1)
-        self.assertEqual(self.dut.increment("count", 2, orig="set"), 2)
+        self.assertEqual(self.dut.increment(b"count", 1, orig=b"set"), 1)
+        self.assertEqual(self.dut.increment(b"count", 2, orig=b"set"), 2)
 
     def test_increment_with_set_error_incompatible_existing_record(self):
-        self.dut.set("count", "1")
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, "count", 2, orig="set")
+        self.dut.set(b"count", b"1")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, b"count", 2, orig=b"set")
 
     def test_get(self):
-        self.dut.set("a", "1")
-        self.assertEqual(self.dut.get("a"), (b"1", None))
+        self.dut.set(b"k", b"v")
+        self.assertEqual(self.dut.get(b"k"), (b"v", None))
 
     def test_get_error_no_record_was_found(self):
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, "a")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, b"k")
 
     def test_get_expired(self):
-        self.dut.set("a", "1", 1)
-        self.assertEqual(self.dut.get("a"), (b"1", int(time.time() + 1)))
+        self.dut.set(b"k", b"v", 1)
+        self.assertEqual(self.dut.get(b"k"), (b"v", int(time.time() + 1)))
         time.sleep(2)
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, "a")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, b"k")
 
     def test_check(self):
-        self.dut.set("a", "1")
-        self.assertEqual(self.dut.check("a"), (1, None))
+        self.dut.set(b"k", b"v")
+        self.assertEqual(self.dut.check(b"k"), (1, None))
 
     def test_check_error_no_record_was_found(self):
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.check, "a")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.check, b"k")
 
     def test_get_bulk(self):
-        self.assertEqual(self.dut.get_bulk(["a", "b"]), {})
-        self.dut.set("a", "1")
-        self.dut.set("b", "2")
-        self.assertEqual(self.dut.get_bulk(["a", "b"]), {b"a": b"1", b"b": b"2"})
+        self.assertEqual(self.dut.get_bulk([b"k", b"l"]), {})
+        self.dut.set(b"k", b"v")
+        self.dut.set(b"l", b"w")
+        self.assertEqual(self.dut.get_bulk([b"k", b"l"]), {b"k": b"v", b"l": b"w"})
 
     def test_match_prefix(self):
-        self.assertEqual(self.dut.match_prefix("a"), [])
-        self.dut.set("a", "1")
-        self.dut.set("aa", "11")
-        self.dut.set("b", "2")
-        self.assertEqual(self.dut.match_prefix("a"), [b"a", b"aa"])
+        self.assertEqual(self.dut.match_prefix(b"k"), [])
+        self.dut.set(b"k", b"v")
+        self.dut.set(b"kk",b"vv")
+        self.dut.set(b"l", b"w")
+        self.assertEqual(self.dut.match_prefix(b"k"), [b"k", b"kk"])
 
     def test_match_prefix_with_max(self):
-        self.dut.set("a", "1")
-        self.dut.set("aa", "11")
-        self.dut.set("b", "2")
-        self.assertEqual(self.dut.match_prefix("a", max=1), [b"a"])
+        self.dut.set(b"k", b"v")
+        self.dut.set(b"kk", b"vv")
+        self.dut.set(b"l", b"w")
+        self.assertEqual(self.dut.match_prefix(b"k", max=1), [b"k"])
 
 
 class KyotoTycoonConnectionPerformanceTest(unittest.TestCase):
@@ -161,9 +160,9 @@ class KyotoTycoonConnectionPerformanceTest(unittest.TestCase):
     def test_get(self):
         s = time.time()
         dut = kyoto.KyotoTycoonConnection('localhost', 1978)
-        dut.set("a", "1" * 1024)
+        dut.set(b"k", b"v" * 1024)
         for i in range(1000):
-            dut.get("a")
+            dut.get(b"k")
         e = time.time()
         self.assertLess(e - s, 2)
         dut.close()

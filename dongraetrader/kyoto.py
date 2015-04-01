@@ -90,7 +90,7 @@ def assoc_find(assoc, key):
 
 
 def none_or_str(i):
-    return None if i is None else str(i)
+    return None if i is None else str(i).encode('utf-8')
 
 
 def none_or_int(s):
@@ -133,7 +133,7 @@ class TsvRpc(object):
                 for i, column in enumerate(columns):
                     if i != 0:
                         buffer.write(cls.COLUMN_SEPARATOR)
-                    buffer.write(column.encode('utf-8') if isinstance(column, text_type) else column)
+                    buffer.write(column)
                 buffer.write(cls.RECORD_SEPARATOR)
             return buffer.getvalue()
         finally:
@@ -223,7 +223,7 @@ class KyotoTycoonConnection(Connection):
     def increment(self, key, num, orig=None, xt=None, db=None):
         input = []
         assoc_append(input, self.NAME_KEY, key)
-        assoc_append(input, self.NAME_NUM, str(num))
+        assoc_append(input, self.NAME_NUM, str(num).encode('utf-8'))
         assoc_append_if_not_none(input, self.NAME_ORIG, orig)
         assoc_append_if_not_none(input, self.NAME_XT, none_or_str(xt))
         assoc_append_if_not_none(input, self.NAME_DB, db)
@@ -254,7 +254,6 @@ class KyotoTycoonConnection(Connection):
         return int(assoc_get(output, self.NAME_NUM))
 
     def get_bulk(self, keys, atomic=None, db=None):
-        keys = [key.encode('utf-8') for key in keys]
         input = []
         assoc_append_if_not_none(input, self.NAME_ATOMIC, atomic)
         assoc_append_if_not_none(input, self.NAME_DB, db)
