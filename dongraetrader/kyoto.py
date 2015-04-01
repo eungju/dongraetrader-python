@@ -123,7 +123,7 @@ class TsvRpc(object):
         try:
             for columns in records:
                 first = True
-                for i, column in enumerate(columns):
+                for column in columns:
                     if not first:
                         buffer.write(cls.COLUMN_SEPARATOR)
                     buffer.write(encoding.encode(column))
@@ -153,6 +153,7 @@ class KyotoTycoonConnection(Connection):
     NAME_PREFIX = b'prefix'
     NAME_MAX = b'max'
     NAME_VSIZ = b'vsiz'
+    NAME__ = b'_'
     NAME_ERROR = b'ERROR'
 
     def __init__(self, host, port, timeout=None):
@@ -257,21 +258,23 @@ class KyotoTycoonConnection(Connection):
 
     def remove_bulk(self, keys, atomic=None, db=None):
         input = []
-        assoc_append_if_not_none(input, self.NAME_ATOMIC, atomic)
+        if atomic:
+            assoc_append(input, self.NAME_ATOMIC, b'')
         assoc_append_if_not_none(input, self.NAME_DB, db)
         for key in keys:
-            assoc_append(input, b"_" + key, b"")
+            assoc_append(input, self.NAME__ + key, b'')
         output = self.call("remove_bulk", input)
         return int(assoc_get(output, self.NAME_NUM))
 
     def get_bulk(self, keys, atomic=None, db=None):
         input = []
-        assoc_append_if_not_none(input, self.NAME_ATOMIC, atomic)
+        if atomic:
+            assoc_append(input, self.NAME_ATOMIC, b'')
         assoc_append_if_not_none(input, self.NAME_DB, db)
         for key in keys:
-            assoc_append(input, b"_" + key, b"")
+            assoc_append(input, self.NAME__ + key, b'')
         output = self.call("get_bulk", input)
-        return dict([(k[1:], v) for k, v in output if k.startswith(b"_")])
+        return dict([(k[1:], v) for k, v in output if k.startswith(self.NAME__)])
 
     def match_prefix(self, prefix, max=None, db=None):
         input = []
@@ -279,7 +282,7 @@ class KyotoTycoonConnection(Connection):
         assoc_append_if_not_none(input, self.NAME_MAX, self._encode_int(max))
         assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("match_prefix", input)
-        return [k[1:] for k, v in output if k.startswith(b"_")]
+        return [k[1:] for k, v in output if k.startswith(self.NAME__)]
 
 
 class KyotoTycoonClient(object):

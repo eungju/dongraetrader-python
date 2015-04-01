@@ -50,6 +50,10 @@ class TsvRpcTest(unittest.TestCase):
         self.assertEquals(self.dut.read(b'%20\t%62\n', self.column_encoding), [(b' ', b'b')])
         self.assertEquals(self.dut.write([(b' ', b'b')], self.column_encoding), b'%20\tb\n')
 
+    def test_row_can_have_one_column(self):
+        self.assertEquals(self.dut.read(b'a\n', self.column_encoding), [(b'a',)])
+        self.assertEquals(self.dut.write([(b'a', )], self.column_encoding), b'a\n')
+
 
 class KyotoTycoonConnectionTest(unittest.TestCase):
     def setUp(self):
@@ -137,6 +141,9 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
         self.dut.set(b"k", b"v")
         self.dut.set(b"l", b"w")
         self.assertEqual(self.dut.get_bulk([b"k", b"l"]), {b"k": b"v", b"l": b"w"})
+
+    def test_get_bulk_with_atomic(self):
+        self.assertEqual(self.dut.get_bulk([b"k", b"l"], atomic=True), {})
 
     def test_match_prefix(self):
         self.assertEqual(self.dut.match_prefix(b"k"), [])
