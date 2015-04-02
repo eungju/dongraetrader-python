@@ -226,6 +226,16 @@ class KyotoTycoonConnection(Connection):
         output = self.call("echo", input)
         return {self._key_deser(k): self._value_deser(v) for k, v in output}
 
+    def report(self):
+        output = self.call("report", [])
+        return {self._decode_text(k): self._decode_text(v) for k, v in output}
+
+    def status(self, db=None):
+        input = []
+        assoc_append_if_not_none(input, self.NAME_DB, db)
+        output = self.call("status", input)
+        return {self._decode_text(k): self._decode_text(v) for k, v in output}
+
     def clear(self, db=None):
         input = []
         assoc_append_if_not_none(input, self.NAME_DB, db)

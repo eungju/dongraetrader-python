@@ -94,6 +94,14 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
     def test_echo(self):
         self.assertEqual(self.dut.echo({'k': 'v'}), {'k': 'v'})
 
+    def test_report(self):
+        actual = self.dut.report()
+        assert 'cnt_get' in actual
+
+    def test_status(self):
+        actual = self.dut.status()
+        assert all(name in actual for name in ('count', 'size'))
+
     def test_clear(self):
         self.dut.add("k", "v")
         self.dut.clear()
