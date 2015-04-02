@@ -23,10 +23,27 @@ class AssocTest(unittest.TestCase):
         self.assertEqual(kyoto.assoc_find(assoc, "k"), "v")
 
 
+class ColumnEncodingTest(unittest.TestCase):
+    def test_raw(self):
+        dut = kyoto.RawColumnEncoding()
+        self.assertEquals(dut.encode(b'abc'), b'abc')
+        self.assertEquals(dut.decode(b'abc'), b'abc')
+
+    def test_url(self):
+        dut = kyoto.URLColumnEncoding()
+        self.assertEquals(dut.encode(b'\t\n'), b'%09%0A')
+        self.assertEquals(dut.decode(b'%09%0A'), b'\t\n')
+
+    def test_base64(self):
+        dut = kyoto.Base64ColumnEncoding()
+        self.assertEquals(dut.encode(b'\t\n'), b'CQo=')
+        self.assertEquals(dut.decode(b'CQo='), b'\t\n')
+
+
 class TsvRpcTest(unittest.TestCase):
     def setUp(self):
         self.dut = kyoto.TsvRpc
-        self.column_encoding = kyoto.URLValueEncoding()
+        self.column_encoding = kyoto.URLColumnEncoding()
 
     def test_read_empty(self):
         self.assertEquals(self.dut.read(b'', self.column_encoding), [])

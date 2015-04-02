@@ -22,7 +22,7 @@ else:
 from .connection import Connection, ConnectionPool
 
 
-class ValueEncoding(object):
+class ColumnEncoding(object):
     def __init__(self, name):
         self.name = name
 
@@ -33,9 +33,9 @@ class ValueEncoding(object):
         raise NotImplementedError
 
 
-class RawValueEncoding(ValueEncoding):
+class RawColumnEncoding(ColumnEncoding):
     def __init__(self):
-        super(RawValueEncoding, self).__init__(None)
+        super(RawColumnEncoding, self).__init__(None)
 
     def encode(self, s):
         return s
@@ -44,9 +44,9 @@ class RawValueEncoding(ValueEncoding):
         return s
 
 
-class URLValueEncoding(ValueEncoding):
+class URLColumnEncoding(ColumnEncoding):
     def __init__(self):
-        super(URLValueEncoding, self).__init__("U")
+        super(URLColumnEncoding, self).__init__("U")
 
     def encode(self, s):
         return quote_from_bytes(s).encode('ascii')
@@ -55,9 +55,9 @@ class URLValueEncoding(ValueEncoding):
         return unquote_to_bytes(s)
 
 
-class Base64ValueEncoding(ValueEncoding):
+class Base64ColumnEncoding(ColumnEncoding):
     def __init__(self):
-        super(Base64ValueEncoding, self).__init__("B")
+        super(Base64ColumnEncoding, self).__init__("B")
 
     def encode(self, s):
         return base64.standard_b64encode(s)
@@ -94,9 +94,9 @@ class TsvRpc(object):
     COLUMN_SEPARATOR = b'\t'
 
     CONTENT_TYPES = {
-        "text/tab-separated-values": RawValueEncoding(),
-        "text/tab-separated-values; colenc=U": URLValueEncoding(),
-        "text/tab-separated-values; colenc=B": Base64ValueEncoding()
+        "text/tab-separated-values": RawColumnEncoding(),
+        "text/tab-separated-values; colenc=U": URLColumnEncoding(),
+        "text/tab-separated-values; colenc=B": Base64ColumnEncoding()
     }
 
     @classmethod
@@ -186,7 +186,7 @@ class KyotoTycoonConnection(Connection):
         return int(self._decode_text(b))
 
     def call(self, name, input):
-        in_encoding = URLValueEncoding()
+        in_encoding = URLColumnEncoding()
         body = TsvRpc.write(input, in_encoding)
         headers = {"Content-Type": TsvRpc.content_type_for(in_encoding)}
         self.connection.request("POST", "/rpc/%s" % name, body, headers)
