@@ -13,9 +13,12 @@ before_install:
   - sudo dpkg -i libkyototycoon2_0.9.56-1_amd64.deb
   - sudo dpkg -i kyototycoon_0.9.56-1_amd64.deb
 install:
-  - pip install tox>=1.8
-script:
+  - pip install -e .[tests]
+  - pip install pytest-cov flake8 coveralls
+before_script:
   - ktserver -dmn '+' '-'
-  - tox -e \
-    $(echo py$TRAVIS_PYTHON_VERSION | tr -d . | sed -e 's/pypypy/pypy/')
-
+script:
+  - py.test -vv --cov dongraetrader
+  - flake8
+after_success:
+  - coveralls

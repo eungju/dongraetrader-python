@@ -13,7 +13,7 @@ except ImportError:
 
 import sys
 if sys.version < '3':
-    text_type = unicode
+    text_type = unicode  # NOQA
     binary_type = str
 else:
     text_type = str
