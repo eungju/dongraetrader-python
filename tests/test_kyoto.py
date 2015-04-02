@@ -74,23 +74,6 @@ class TsvRpcTest(unittest.TestCase):
         self.assertEquals(self.dut.write([(b'a', )], self.column_encoding), b'a\n')
 
 
-class SerializerTest(unittest.TestCase):
-    def test_bytes_serializer(self):
-        dut = kyoto.BytesSerializer()
-        self.assertEquals(dut.serialize(b'\xea\xb0\x80'), b'\xea\xb0\x80')
-        self.assertEquals(dut.deserialize(b'\xea\xb0\x80'), b'\xea\xb0\x80')
-
-    def test_text_serializer(self):
-        dut = kyoto.TextSerializer()
-        self.assertEquals(dut.serialize(u'가'), b'\xea\xb0\x80')
-        self.assertEquals(dut.deserialize(b'\xea\xb0\x80'), u'가')
-
-    def test_str_serializer(self):
-        dut = kyoto.StrSerializer()
-        self.assertEquals(dut.serialize('가'), b'\xea\xb0\x80')
-        self.assertEquals(dut.deserialize(b'\xea\xb0\x80'), '가')
-
-
 class KyotoTycoonConnectionTest(unittest.TestCase):
     def setUp(self):
         self.dut = kyoto.KyotoTycoonConnection("localhost", 1978)

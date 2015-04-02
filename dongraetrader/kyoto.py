@@ -20,6 +20,7 @@ else:
     binary_type = bytes
 
 from .connection import Connection, ConnectionPool
+from .serializer import StrSerializer
 
 
 class ColumnEncoding(object):
@@ -132,35 +133,6 @@ class TsvRpc(object):
             return buffer.getvalue()
         finally:
             buffer.close()
-
-
-class Serializer(object):
-    pass
-
-
-class BytesSerializer(Serializer):
-    def serialize(self, v):
-        return v
-
-    def deserialize(self, b):
-        return b
-
-
-class TextSerializer(Serializer):
-    def __init__(self, text_encoding='utf-8'):
-        self.text_encoding = text_encoding
-
-    def serialize(self, v):
-        return v.encode(self.text_encoding)
-
-    def deserialize(self, b):
-        return b.decode(self.text_encoding)
-
-
-if sys.version < '3':
-    StrSerializer = BytesSerializer
-else:
-    StrSerializer = TextSerializer
 
 
 class KyotoError(Exception):
