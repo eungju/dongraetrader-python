@@ -1,7 +1,10 @@
 import logging
 import os
 import time
-from Queue import LifoQueue, Full, Empty
+try:
+    from queue import LifoQueue, Full, Empty
+except ImportError:
+    from Queue import LifoQueue, Full, Empty
 
 
 logger = logging.getLogger(__name__)
