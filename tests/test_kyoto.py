@@ -1,5 +1,7 @@
 import time
+import platform
 import unittest
+import pytest
 
 from dongraetrader import kyoto
 
@@ -176,21 +178,26 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
         self.assertEqual(self.dut.match_prefix(b"k", max=1), [b"k"])
 
 
-class KyotoTycoonConnectionPerformanceTest(unittest.TestCase):
-    def test_connect_and_close(self):
-        s = time.time()
-        for i in range(100):
-            dut = kyoto.KyotoTycoonConnection('localhost', 1978)
-            dut.close()
-        e = time.time()
-        self.assertLess(e - s, 1)
+ignore_if_pypy = pytest.mark.skipif(platform.python_implementation() == 'PyPy', reason="pypy+coverage has an issue")
 
-    def test_get(self):
-        s = time.time()
+
+@ignore_if_pypy
+def test_connect_and_close():
+    s = time.time()
+    for i in range(100):
         dut = kyoto.KyotoTycoonConnection('localhost', 1978)
-        dut.set(b"k", b"v" * 1024)
-        for i in range(1000):
-            dut.get(b"k")
-        e = time.time()
-        self.assertLess(e - s, 2)
         dut.close()
+    e = time.time()
+    assert e - s < 1
+
+
+@ignore_if_pypy
+def test_get():
+    s = time.time()
+    dut = kyoto.KyotoTycoonConnection('localhost', 1978)
+    dut.set(b"k", b"v" * 1024)
+    for i in range(1000):
+        dut.get(b"k")
+    e = time.time()
+    assert e - s < 2
+    dut.close()
