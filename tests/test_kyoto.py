@@ -165,7 +165,7 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
     def test_match_prefix(self):
         self.assertEqual(self.dut.match_prefix(b"k"), [])
         self.dut.set(b"k", b"v")
-        self.dut.set(b"kk",b"vv")
+        self.dut.set(b"kk", b"vv")
         self.dut.set(b"l", b"w")
         self.assertEqual(self.dut.match_prefix(b"k"), [b"k", b"kk"])
 
