@@ -154,7 +154,7 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
         self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, "k")
 
     def test_get_expired(self):
-        t = time.time()
+        t = int(time.time())
         self.dut.set("k", "v", 1)
         value, xt = self.dut.get("k")
         assert value == 'v' and xt >= t + 1
