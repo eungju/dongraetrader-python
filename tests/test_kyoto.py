@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import time
-import platform
 import unittest
-import pytest
 
 from dongraetrader import kyoto
 
@@ -207,28 +205,3 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
         self.dut.set("kk", "vv")
         self.dut.set("l", "w")
         self.assertEqual(self.dut.match_prefix("k", max=1), ["k"])
-
-
-ignore_if_pypy = pytest.mark.skipif(platform.python_implementation() == 'PyPy', reason="pypy+coverage has an issue")
-
-
-@ignore_if_pypy
-def test_connect_and_close():
-    s = time.time()
-    for i in range(100):
-        dut = kyoto.KyotoTycoonConnection('localhost', 1978)
-        dut.close()
-    e = time.time()
-    assert e - s < 1
-
-
-@ignore_if_pypy
-def test_get():
-    s = time.time()
-    dut = kyoto.KyotoTycoonConnection('localhost', 1978)
-    dut.set("k", "v" * 1024)
-    for i in range(1000):
-        dut.get("k")
-    e = time.time()
-    assert e - s < 2
-    dut.close()
