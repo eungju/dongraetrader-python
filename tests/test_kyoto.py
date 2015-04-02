@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import time
 import platform
 import unittest
@@ -74,6 +76,23 @@ class TsvRpcTest(unittest.TestCase):
         self.assertEquals(self.dut.write([(b'a', )], self.column_encoding), b'a\n')
 
 
+class SerializerTest(unittest.TestCase):
+    def test_bytes_serializer(self):
+        dut = kyoto.BytesSerializer()
+        self.assertEquals(dut.serialize(b'\xea\xb0\x80'), b'\xea\xb0\x80')
+        self.assertEquals(dut.deserialize(b'\xea\xb0\x80'), b'\xea\xb0\x80')
+
+    def test_text_serializer(self):
+        dut = kyoto.TextSerializer()
+        self.assertEquals(dut.serialize(u'가'), b'\xea\xb0\x80')
+        self.assertEquals(dut.deserialize(b'\xea\xb0\x80'), u'가')
+
+    def test_str_serializer(self):
+        dut = kyoto.StrSerializer()
+        self.assertEquals(dut.serialize('가'), b'\xea\xb0\x80')
+        self.assertEquals(dut.deserialize(b'\xea\xb0\x80'), '가')
+
+
 class KyotoTycoonConnectionTest(unittest.TestCase):
     def setUp(self):
         self.dut = kyoto.KyotoTycoonConnection("localhost", 1978)
@@ -91,91 +110,103 @@ class KyotoTycoonConnectionTest(unittest.TestCase):
     def test_void(self):
         self.dut.void()
 
+    def test_echo(self):
+        self.assertEqual(self.dut.echo({'k': 'v'}), {'k': 'v'})
+
     def test_clear(self):
-        self.dut.add(b"k", b"v")
+        self.dut.add("k", "v")
         self.dut.clear()
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, b"k")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, "k")
 
     def test_set(self):
-        self.dut.set(b"k", b"v")
-        self.assertEqual(self.dut.get(b"k"), (b"v", None))
-        self.dut.set(b"k", b"w")
-        self.assertEqual(self.dut.get(b"k"), (b"w", None))
+        self.dut.set("k", "v")
+        self.assertEqual(self.dut.get("k"), ("v", None))
+        self.dut.set("k", "w")
+        self.assertEqual(self.dut.get("k"), ("w", None))
 
     def test_add(self):
-        self.dut.add(b"k", b"v")
-        self.assertEqual(self.dut.get(b"k"), (b"v", None))
+        self.dut.add("k", "v")
+        self.assertEqual(self.dut.get("k"), ("v", None))
 
     def test_add_error_existing_record_was_detected(self):
-        self.dut.add(b"k", b"v")
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.add, b"k", b"w")
+        self.dut.add("k", "v")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.add, "k", "w")
 
     def test_increment(self):
-        self.assertEqual(self.dut.increment(b"count", 1), 1)
-        self.assertEqual(self.dut.increment(b"count", 2), 3)
-        self.assertEqual(self.dut.increment(b"count", 0), 3)
-        self.assertEqual(self.dut.get(b"count"), (b"\x00\x00\x00\x00\x00\x00\x00\x03", None))
+        self.assertEqual(self.dut.increment("count", 1), 1)
+        self.assertEqual(self.dut.increment("count", 2), 3)
+        self.assertEqual(self.dut.increment("count", 0), 3)
+        self.assertEqual(self.dut.get("count"), ("\x00\x00\x00\x00\x00\x00\x00\x03", None))
 
     def test_increment_error_incompatible_existing_record(self):
-        self.dut.set(b"count", b"1")
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, b"count", 2)
+        self.dut.set("count", "1")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, "count", 2)
 
     def test_increment_with_try(self):
-        self.assertEqual(self.dut.increment(b"count", 1), 1)
-        self.assertEqual(self.dut.increment(b"count", 2, orig=b"try"), 3)
+        self.assertEqual(self.dut.increment("count", 1), 1)
+        self.assertEqual(self.dut.increment("count", 2, orig=b"try"), 3)
 
     def test_increment_with_try_error_incompatible_existing_record(self):
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, b"count", 1, orig=b"try")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, "count", 1, orig=b"try")
 
     def test_increment_with_set(self):
-        self.assertEqual(self.dut.increment(b"count", 1, orig=b"set"), 1)
-        self.assertEqual(self.dut.increment(b"count", 2, orig=b"set"), 2)
+        self.assertEqual(self.dut.increment("count", 1, orig=b"set"), 1)
+        self.assertEqual(self.dut.increment("count", 2, orig=b"set"), 2)
 
     def test_increment_with_set_error_incompatible_existing_record(self):
-        self.dut.set(b"count", b"1")
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, b"count", 2, orig=b"set")
+        self.dut.set("count", "1")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.increment, "count", 2, orig=b"set")
 
     def test_get(self):
-        self.dut.set(b"k", b"v")
-        self.assertEqual(self.dut.get(b"k"), (b"v", None))
+        self.dut.set("k", "v")
+        self.assertEqual(self.dut.get("k"), ("v", None))
 
     def test_get_error_no_record_was_found(self):
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, b"k")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, "k")
 
     def test_get_expired(self):
-        self.dut.set(b"k", b"v", 1)
-        self.assertEqual(self.dut.get(b"k"), (b"v", int(time.time() + 1)))
+        self.dut.set("k", "v", 1)
+        self.assertEqual(self.dut.get("k"), ("v", int(time.time() + 1)))
         time.sleep(2)
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, b"k")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.get, "k")
 
     def test_check(self):
-        self.dut.set(b"k", b"v")
-        self.assertEqual(self.dut.check(b"k"), (1, None))
+        self.dut.set("k", "v")
+        self.assertEqual(self.dut.check("k"), (1, None))
 
     def test_check_error_no_record_was_found(self):
-        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.check, b"k")
+        self.assertRaises(kyoto.LogicalInconsistencyError, self.dut.check, "k")
+
+    def test_remove_bulk(self):
+        self.assertEqual(self.dut.remove_bulk(["k", "l"]), 0)
+        self.dut.set("k", "v")
+        self.dut.set("l", "w")
+        self.assertEqual(self.dut.remove_bulk(["k", "l"]), 2)
+
+    def test_remove_bulk_with_atomic(self):
+        self.assertEqual(self.dut.remove_bulk(["k", "l"], atomic=True), 0)
 
     def test_get_bulk(self):
-        self.assertEqual(self.dut.get_bulk([b"k", b"l"]), {})
-        self.dut.set(b"k", b"v")
-        self.dut.set(b"l", b"w")
-        self.assertEqual(self.dut.get_bulk([b"k", b"l"]), {b"k": b"v", b"l": b"w"})
+        self.assertEqual(self.dut.get_bulk(["k", "l"]), {})
+        self.dut.set("k", "v")
+        self.dut.set("l", "w")
+        self.assertEqual(self.dut.get_bulk(["k", "l"]), {"k": "v", "l": "w"})
 
     def test_get_bulk_with_atomic(self):
-        self.assertEqual(self.dut.get_bulk([b"k", b"l"], atomic=True), {})
+        self.assertEqual(self.dut.get_bulk(["k", "l"], atomic=True), {})
 
     def test_match_prefix(self):
-        self.assertEqual(self.dut.match_prefix(b"k"), [])
-        self.dut.set(b"k", b"v")
-        self.dut.set(b"kk", b"vv")
-        self.dut.set(b"l", b"w")
-        self.assertEqual(self.dut.match_prefix(b"k"), [b"k", b"kk"])
+        self.assertEqual(self.dut.match_prefix("k"), [])
+        self.dut.set("k", "v")
+        self.dut.set("kk", "vv")
+        self.dut.set("l", "w")
+        self.assertEqual(self.dut.match_prefix("k"), ["k", "kk"])
 
     def test_match_prefix_with_max(self):
-        self.dut.set(b"k", b"v")
-        self.dut.set(b"kk", b"vv")
-        self.dut.set(b"l", b"w")
-        self.assertEqual(self.dut.match_prefix(b"k", max=1), [b"k"])
+        self.dut.set("k", "v")
+        self.dut.set("kk", "vv")
+        self.dut.set("l", "w")
+        self.assertEqual(self.dut.match_prefix("k", max=1), ["k"])
 
 
 ignore_if_pypy = pytest.mark.skipif(platform.python_implementation() == 'PyPy', reason="pypy+coverage has an issue")
@@ -195,9 +226,9 @@ def test_connect_and_close():
 def test_get():
     s = time.time()
     dut = kyoto.KyotoTycoonConnection('localhost', 1978)
-    dut.set(b"k", b"v" * 1024)
+    dut.set("k", "v" * 1024)
     for i in range(1000):
-        dut.get(b"k")
+        dut.get("k")
     e = time.time()
     assert e - s < 2
     dut.close()

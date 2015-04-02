@@ -134,6 +134,35 @@ class TsvRpc(object):
             buffer.close()
 
 
+class Serializer(object):
+    pass
+
+
+class BytesSerializer(Serializer):
+    def serialize(self, v):
+        return v
+
+    def deserialize(self, b):
+        return b
+
+
+class TextSerializer(Serializer):
+    def __init__(self, text_encoding='utf-8'):
+        self.text_encoding = text_encoding
+
+    def serialize(self, v):
+        return v.encode(self.text_encoding)
+
+    def deserialize(self, b):
+        return b.decode(self.text_encoding)
+
+
+if sys.version < '3':
+    StrSerializer = BytesSerializer
+else:
+    StrSerializer = TextSerializer
+
+
 class KyotoError(Exception):
     pass
 
@@ -158,6 +187,8 @@ class KyotoTycoonConnection(Connection):
 
     def __init__(self, host, port, timeout=None):
         super(KyotoTycoonConnection, self).__init__([HTTPException])
+        self.key_serializer = StrSerializer()
+        self.value_serializer = StrSerializer()
         self.connection = HTTPConnection(host, port, timeout=timeout)
         self.connection.connect()
         self.str = "%s#%d(%s:%d)" % (self.__class__.__name__, id(self), host, port)
@@ -185,6 +216,18 @@ class KyotoTycoonConnection(Connection):
             return None
         return int(self._decode_text(b))
 
+    def _key_ser(self, v):
+        return self.key_serializer.serialize(v)
+
+    def _key_deser(self, b):
+        return self.key_serializer.deserialize(b)
+
+    def _value_ser(self, v):
+        return self.value_serializer.serialize(v)
+
+    def _value_deser(self, b):
+        return self.value_serializer.deserialize(b)
+
     def call(self, name, input):
         in_encoding = URLColumnEncoding()
         body = TsvRpc.write(input, in_encoding)
@@ -207,9 +250,9 @@ class KyotoTycoonConnection(Connection):
         self.call("void", [])
 
     def echo(self, records):
-        input = [(k, v) for k, v in records.iteritems()]
+        input = [(self._key_ser(k), self._value_ser(v)) for k, v in records.items()]
         output = self.call("echo", input)
-        return dict(output)
+        return {self._key_deser(k): self._value_deser(v) for k, v in output}
 
     def clear(self, db=None):
         input = []
@@ -218,23 +261,23 @@ class KyotoTycoonConnection(Connection):
 
     def set(self, key, value, xt=None, db=None):
         input = []
-        assoc_append(input, self.NAME_KEY, key)
-        assoc_append(input, self.NAME_VALUE, value)
+        assoc_append(input, self.NAME_KEY, self._key_ser(key))
+        assoc_append(input, self.NAME_VALUE, self._value_ser(value))
         assoc_append_if_not_none(input, self.NAME_XT, self._encode_int(xt))
         assoc_append_if_not_none(input, self.NAME_DB, db)
         self.call("set", input)
 
     def add(self, key, value, xt=None, db=None):
         input = []
-        assoc_append(input, self.NAME_KEY, key)
-        assoc_append(input, self.NAME_VALUE, value)
+        assoc_append(input, self.NAME_KEY, self._key_ser(key))
+        assoc_append(input, self.NAME_VALUE, self._value_ser(value))
         assoc_append_if_not_none(input, self.NAME_XT, self._encode_int(xt))
         assoc_append_if_not_none(input, self.NAME_DB, db)
         self.call("add", input)
 
     def increment(self, key, num, orig=None, xt=None, db=None):
         input = []
-        assoc_append(input, self.NAME_KEY, key)
+        assoc_append(input, self.NAME_KEY, self._key_ser(key))
         assoc_append(input, self.NAME_NUM, self._encode_int(num))
         assoc_append_if_not_none(input, self.NAME_ORIG, orig)
         assoc_append_if_not_none(input, self.NAME_XT, self._encode_int(xt))
@@ -244,14 +287,14 @@ class KyotoTycoonConnection(Connection):
 
     def get(self, key, db=None):
         input = []
-        assoc_append(input, self.NAME_KEY, key)
+        assoc_append(input, self.NAME_KEY, self._key_ser(key))
         assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("get", input)
-        return assoc_get(output, self.NAME_VALUE), self._decode_int(assoc_find(output, self.NAME_XT))
+        return self._value_deser(assoc_get(output, self.NAME_VALUE)), self._decode_int(assoc_find(output, self.NAME_XT))
 
     def check(self, key, db=None):
         input = []
-        assoc_append(input, self.NAME_KEY, key)
+        assoc_append(input, self.NAME_KEY, self._key_ser(key))
         assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("check", input)
         return int(assoc_get(output, self.NAME_VSIZ)), self._decode_int(assoc_find(output, self.NAME_XT))
@@ -262,7 +305,7 @@ class KyotoTycoonConnection(Connection):
             assoc_append(input, self.NAME_ATOMIC, b'')
         assoc_append_if_not_none(input, self.NAME_DB, db)
         for key in keys:
-            assoc_append(input, self.NAME__ + key, b'')
+            assoc_append(input, self.NAME__ + self._key_ser(key), b'')
         output = self.call("remove_bulk", input)
         return int(assoc_get(output, self.NAME_NUM))
 
@@ -272,17 +315,17 @@ class KyotoTycoonConnection(Connection):
             assoc_append(input, self.NAME_ATOMIC, b'')
         assoc_append_if_not_none(input, self.NAME_DB, db)
         for key in keys:
-            assoc_append(input, self.NAME__ + key, b'')
+            assoc_append(input, self.NAME__ + self._key_ser(key), b'')
         output = self.call("get_bulk", input)
-        return dict([(k[1:], v) for k, v in output if k.startswith(self.NAME__)])
+        return dict([(self._key_deser(k[1:]), self._value_deser(v)) for k, v in output if k.startswith(self.NAME__)])
 
     def match_prefix(self, prefix, max=None, db=None):
         input = []
-        assoc_append(input, self.NAME_PREFIX, prefix)
+        assoc_append(input, self.NAME_PREFIX, self._key_ser(prefix))
         assoc_append_if_not_none(input, self.NAME_MAX, self._encode_int(max))
         assoc_append_if_not_none(input, self.NAME_DB, db)
         output = self.call("match_prefix", input)
-        return [k[1:] for k, v in output if k.startswith(self.NAME__)]
+        return [self._key_deser(k[1:]) for k, v in output if k.startswith(self.NAME__)]
 
 
 class KyotoTycoonClient(object):
